@@ -2,19 +2,22 @@ package br.ufrn.imd.nexus.service;
 
 import br.ufrn.imd.nexus.model.Ticket;
 import br.ufrn.imd.nexus.repository.TicketRepository;
+import br.ufrn.imd.nexus.repository.VectorRepository;
 import jakarta.transaction.Transactional;
+import org.springframework.ai.document.Document;
 import org.springframework.stereotype.Service;
 
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 public class TicketService {
 
     private final TicketRepository ticketRepository;
+    private final VectorRepository vectorRepository;
 
-    public TicketService(TicketRepository ticketRepository) {
+    public TicketService(TicketRepository ticketRepository, VectorRepository vectorRepository) {
         this.ticketRepository = ticketRepository;
+        this.vectorRepository = vectorRepository;
     }
 
     @Transactional
@@ -23,13 +26,27 @@ public class TicketService {
         if (newTicket == null) {
             throw new IllegalArgumentException("Ticket: campo obrigatório.");
         }
-
+        Ticket savedTicket = ticketRepository.save(newTicket);
+        Document document = ticketToDocument(savedTicket);
+        vectorRepository.add(Collections.singletonList(document));
         return ticketRepository.save(newTicket);
     }
 
     @Transactional
     public Optional<Ticket> getById(UUID uuid) {
         return ticketRepository.findById(uuid);
+    }
+
+    @Transactional
+    public List<Ticket> searchTicketsBySimilarity(String query) {
+        List<Document> documents = vectorRepository.searchTicket(query);
+        List<Ticket> tickets = new ArrayList<>();
+        for (Document document : documents) {
+            UUID ticketId = (UUID) document.getMetadata().get("ticketId");
+            Optional<Ticket> ticket = getById(ticketId);
+            ticket.ifPresent(tickets::add);
+        }
+        return tickets;
     }
 
     @Transactional
@@ -45,6 +62,10 @@ public class TicketService {
 
         existingTicket.get().update(ticket);
 
+        vectorRepository.delete(existingTicket.get().getTicketId().toString());
+
+        vectorRepository.add(ticketToDocument(existingTicket.get()));
+
         return existingTicket;
     }
 
@@ -56,5 +77,45 @@ public class TicketService {
             return deletedTicket;
         }
         return Optional.empty();
+    }
+
+    public List<Ticket> getAllTickets() {
+        return ticketRepository.findAll();
+    }
+
+    public Document ticketToDocument(Ticket ticket) {
+        String content = """
+            ticketId: %s,
+            customerName: %s,
+            customerCompany: %s,
+            contactEmail: %s,
+            title: %s,
+            initialProblem: %s,
+            status: %s,
+            creationTimestamp: %s,
+            triageSummary: %s,
+            triageSuggestedTitle: %s,
+            triageUrgencyAnalysis: %s,
+            triageImpactAnalysis: %s,
+            triagePredictedCategory: %s,
+            triageAssignedPriority: %s
+        """.formatted(
+                ticket.getTicketId(),
+                ticket.getCustomerInfo().getCustomerName(),
+                ticket.getCustomerInfo().getCustomerName(),
+                ticket.getCustomerInfo().getContactEmail(),
+                ticket.getTitle(),
+                ticket.getInitialProblem(),
+                ticket.getStatus(),
+                ticket.getCreationTimestamp().toString(),
+                ticket.getTriageAnalysis().getSummary(),
+                ticket.getTriageAnalysis().getSuggestedTitle(),
+                ticket.getTriageAnalysis().getUrgencyAnalysis(),
+                ticket.getTriageAnalysis().getImpactAnalysis(),
+                ticket.getTriageAnalysis().getPredictedCategory(),
+                ticket.getTriageAnalysis().getAssignedPriority()
+        );
+
+        return Document.builder().text(content).id(ticket.getTicketId().toString()).build();
     }
 }
