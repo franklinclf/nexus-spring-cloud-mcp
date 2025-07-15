@@ -39,8 +39,7 @@ public class TicketsController {
     }
 
     @GetMapping("/search")
-    @Tool(description = "Recupera tickets registrados no sistema que sejam semanticamente semelhantes à descrição fornecida. Essa ferramenta realiza uma busca por similaridade no conteúdo textual dos tickets (título, descrição, categoria, etc.), permitindo encontrar tickets mesmo que as palavras usadas não sejam exatamente as mesmas. Ideal para identificar tickets anteriores com problemas parecidos, auxiliar em diagnósticos, ou sugerir soluções com base em históricos semelhantes.")
-    public ResponseEntity<List<Ticket>> getAllTicketsBySimilarity(@ToolParam(description = "A query é a String utilizada para procurar conteúdos mais similares com ela em relação ao seu conteúdo.") @QueryParam("query") String query){
+    public ResponseEntity<List<Ticket>> getAllTicketsBySimilarity(@QueryParam("query") String query){
         return ResponseEntity.ok(ticketService.searchTicketsBySimilarity(query));
     }
 

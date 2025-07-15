@@ -1,6 +1,7 @@
 package br.ufrn.imd.nexus;
 
-import br.ufrn.imd.nexus.controller.TicketsController;
+import br.ufrn.imd.nexus.service.TicketService;
+import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.ai.tool.method.MethodToolCallbackProvider;
 import org.springframework.boot.SpringApplication;
@@ -17,9 +18,8 @@ public class NexusApplication {
     }
 
     @Bean
-    public ToolCallbackProvider tools(TicketsController ticketsController) {
-        return MethodToolCallbackProvider.builder()
-                .toolObjects(ticketsController)
-                .build();
+    public ToolCallbackProvider tools(TicketService ticketService) {
+        ToolCallback[] tools = MethodToolCallbackProvider.builder().toolObjects(ticketService).build().getToolCallbacks();
+        return ToolCallbackProvider.from(tools);
     }
 }

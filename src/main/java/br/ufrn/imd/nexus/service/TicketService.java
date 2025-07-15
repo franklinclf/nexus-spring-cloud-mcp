@@ -5,6 +5,8 @@ import br.ufrn.imd.nexus.repository.TicketRepository;
 import br.ufrn.imd.nexus.repository.VectorRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.ai.document.Document;
+import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -38,7 +40,8 @@ public class TicketService {
     }
 
     @Transactional
-    public List<Ticket> searchTicketsBySimilarity(String query) {
+    @Tool(description = "Recupera tickets registrados no sistema que sejam semanticamente semelhantes à descrição fornecida. Essa ferramenta realiza uma busca por similaridade no conteúdo textual dos tickets (título, descrição, categoria, etc.), permitindo encontrar tickets mesmo que as palavras usadas não sejam exatamente as mesmas. Ideal para identificar tickets anteriores com problemas parecidos, auxiliar em diagnósticos, ou sugerir soluções com base em históricos semelhantes.")
+    public List<Ticket> searchTicketsBySimilarity(@ToolParam(description = "A query é a String utilizada para procurar conteúdos mais similares com ela em relação ao seu conteúdo.") String query) {
         List<Document> documents = vectorRepository.searchTicket(query);
         List<Ticket> tickets = new ArrayList<>();
         for (Document document : documents) {
