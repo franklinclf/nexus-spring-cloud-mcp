@@ -1,6 +1,23 @@
 spring:
+  datasource:
+    url: jdbc:postgresql://postgres:5432/nexus-ai
+    username: admin
+    password: admin
+  jpa:
+    hibernate:
+      ddl-auto: create
+    database: postgresql
+  ai:
+    vectorstore:
+      pgvector:
+        index-type: hnsw
+        dimensions: 1536
+        distance-type: cosine_distance
+        initialize-schema: true
+        id-type: uuid
+
   application:
-    name: Nexus
+    name: nexus
   config:
     import: "configserver:"
   cloud:
@@ -14,23 +31,9 @@ spring:
         max-interval: 3000
         multiplier: 1.1
         max-attempts: 10
-  ai:
-    mcp:
-      server:
-        enabled: true
-        base-url: /api
-        type: sync
-        sse-endpoint: /sse
-        sse-message-endpoint: /mcp/messages
-        capabilities:
-          completion: true
-          prompt: true
-          tool: true
-          resource: true
-        name: mcp-server
-        instructions: "Use the MCP server to interact with AI capabilities."
-        stdio: false
-        version: 1.0.0
+
+  main:
+    web-application-type: reactive
   profiles:
     active: dev
 
@@ -47,3 +50,14 @@ eureka:
     instance-id: nexus-${REPLICA_ID:1}
     hostname: nexus-${REPLICA_ID:1}
     appname: nexus
+
+server:
+  port: 8081
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+    access:
+      default: unrestricted

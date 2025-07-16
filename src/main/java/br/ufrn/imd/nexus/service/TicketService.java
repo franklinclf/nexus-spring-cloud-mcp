@@ -1,12 +1,11 @@
 package br.ufrn.imd.nexus.service;
 
+import br.ufrn.imd.nexus.httpInterface.AnexaAI;
 import br.ufrn.imd.nexus.model.Ticket;
 import br.ufrn.imd.nexus.repository.TicketRepository;
-import br.ufrn.imd.nexus.repository.VectorRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.ai.document.Document;
-import org.springframework.ai.tool.annotation.Tool;
-import org.springframework.ai.tool.annotation.ToolParam;
+import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -15,11 +14,13 @@ import java.util.*;
 public class TicketService {
 
     private final TicketRepository ticketRepository;
-    private final VectorRepository vectorRepository;
+    private final VectorStore vectorRepository;
+    private final AnexaAI anexaAI;
 
-    public TicketService(TicketRepository ticketRepository, VectorRepository vectorRepository) {
+    public TicketService(TicketRepository ticketRepository, VectorStore vectorRepository, AnexaAI anexaAI) {
         this.ticketRepository = ticketRepository;
         this.vectorRepository = vectorRepository;
+        this.anexaAI = anexaAI;
     }
 
     @Transactional
@@ -28,28 +29,17 @@ public class TicketService {
         if (newTicket == null) {
             throw new IllegalArgumentException("Ticket: campo obrigatório.");
         }
-        Ticket savedTicket = ticketRepository.save(newTicket);
-        Document document = ticketToDocument(savedTicket);
+
+        Ticket postTriageTicket = anexaAI.sendToTriage(newTicket);
+
+        Document document = ticketToDocument(postTriageTicket);
         vectorRepository.add(Collections.singletonList(document));
-        return ticketRepository.save(newTicket);
+
+        return ticketRepository.save(postTriageTicket);
     }
 
-    @Transactional
     public Optional<Ticket> getById(UUID uuid) {
         return ticketRepository.findById(uuid);
-    }
-
-    @Transactional
-    @Tool(description = "Recupera tickets registrados no sistema que sejam semanticamente semelhantes à descrição fornecida. Essa ferramenta realiza uma busca por similaridade no conteúdo textual dos tickets (título, descrição, categoria, etc.), permitindo encontrar tickets mesmo que as palavras usadas não sejam exatamente as mesmas. Ideal para identificar tickets anteriores com problemas parecidos, auxiliar em diagnósticos, ou sugerir soluções com base em históricos semelhantes.")
-    public List<Ticket> searchTicketsBySimilarity(@ToolParam(description = "A query é a String utilizada para procurar conteúdos mais similares com ela em relação ao seu conteúdo.") String query) {
-        List<Document> documents = vectorRepository.searchTicket(query);
-        List<Ticket> tickets = new ArrayList<>();
-        for (Document document : documents) {
-            UUID ticketId = (UUID) document.getMetadata().get("ticketId");
-            Optional<Ticket> ticket = getById(ticketId);
-            ticket.ifPresent(tickets::add);
-        }
-        return tickets;
     }
 
     @Transactional
@@ -67,7 +57,7 @@ public class TicketService {
 
         vectorRepository.delete(existingTicket.get().getTicketId().toString());
 
-        vectorRepository.add(ticketToDocument(existingTicket.get()));
+        vectorRepository.add(Collections.singletonList(ticketToDocument(existingTicket.get())));
 
         return existingTicket;
     }

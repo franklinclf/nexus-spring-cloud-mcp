@@ -38,11 +38,6 @@ public class TicketsController {
         return ResponseEntity.ok(ticketService.getAllTickets());
     }
 
-    @GetMapping("/search")
-    public ResponseEntity<List<Ticket>> getAllTicketsBySimilarity(@QueryParam("query") String query){
-        return ResponseEntity.ok(ticketService.searchTicketsBySimilarity(query));
-    }
-
     @PatchMapping
     public ResponseEntity<Ticket> updateTicket(@RequestBody Ticket ticket){
         Optional<Ticket> updatedTicket = this.ticketService.update(ticket);
